@@ -1,0 +1,5 @@
+What is happening? The two functions is running parallell. That means there is a chance that incrementing will read i=1, then decrementing read i = 1, since incrementing has not written i=2 back. Then incrementing will continoue i++ and then write i = 2 back, but at the same time decrementing is computing with i = 1 and i-- to i = 0 and write back i = 0; We have now lost the incrementation in addition to running decrementing one time. This can happen several times and that is why we get seamingly random numbers of positive or negative sign.
+
+It is the same thing that happens for C and Go.
+
+If GOMAXPROCS is set to 1, then this problem will not happen, and we get the expected 0 as answer. This is because we now have only 1 operating system thread that can run Go code(at the same time). Which means there is actually not two threads running parallell, and our problem is gone.
