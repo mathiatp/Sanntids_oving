@@ -2,37 +2,30 @@
 #include <stdio.h>
 
 int i = 0;
+pthread_mutex_t lock; 
 
-pthread_mutex_t mutex;
-/**
 
-*/
 // Note the return type: void*
 void* incrementingThreadFunction(){
-
-    for (int j = 0; j < 1000000; j++)
-    {
-	     pthread_mutex_lock(&mutex);
-	       i++;
-       pthread_mutex_unlock(&mutex);
-    }
-    return NULL;
+  for (int j = 0; j < 1000001; j++){
+    pthread_mutex_lock(&lock);
+	  i++;
+    pthread_mutex_unlock(&lock); 
+  }
+  return NULL;
 }
 
 void* decrementingThreadFunction(){
-
-    for (int j = 0; j < 1000000; j++)
-    {
-      pthread_mutex_lock(&mutex);
-	     i--;
-      pthread_mutex_unlock(&mutex);
-    }
-    return NULL;
+  for (int j = 0; j < 1000000; j++){
+    pthread_mutex_lock(&lock);
+    i--;
+    pthread_mutex_unlock(&lock); 
+  }
+  return NULL;
 }
 
 
 int main(){
-    int j = 0;
     pthread_t incrementingThread, decrementingThread;
 
     pthread_create(&incrementingThread, NULL, incrementingThreadFunction, NULL);
