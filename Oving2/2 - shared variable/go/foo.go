@@ -7,59 +7,53 @@ import (
 	"runtime"
 )
 
-func number_server(add <-chan int, sub chan<- int, read <-chan int) {
-	var number = 0
-
+func number_server(ch_add <-chan int, ch_sub <-chan int, ch_read chan<- int) {
+	number := 0
 	for {
 		select {
-		case num := <-add:
-			number += num
-		case sub <- number:
-		case <-read:
-			return
+		case <-ch_add:
+			number++
+		case <-ch_sub:
+			number--
+		case ch_read <- number:
+			break
 		}
 	}
 }
 
-func incrementer(add chan<- int, finished chan<- bool) {
+func increment(ch_add chan<- int, ch_finished chan<- bool) {
 	for j := 0; j < 1000000; j++ {
-		add <- 1
+		ch_add <- 1
 	}
 	// Signal that the goroutine is finished
-	finished <- true
-
+	ch_finished <- true
 }
 
-func decrementer(sub chan<- int, finished chan<- bool) {
-	for j := 0; j < 1000000; j++ {
-		sub <- -1
+func decrement(ch_sub chan<- int, ch_finished chan<- bool) {
+	for j := 0; j < 1000001; j++ {
+		ch_sub <- 1
 	}
 	// Signal that the goroutine is finished
-	finished <- true
-
+	ch_finished <- true
 }
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	// Construct the required channels
-	CH_add := make(chan int)
-	CH_sub := make(chan int)
-	CH_read := make(chan int)
-
-	CH_incr_finished := make(chan bool)
-	CH_decr_finished := make(chan bool)
-
+	ch_add := make(chan int)
+	ch_sub := make(chan int)
+	ch_read := make(chan int)
+	ch_finished := make(chan bool, 2)
 
 	// Spawn the required goroutines
-	go number_server(CH_add, CH_sub, CH_read)
-	go incrementer(CH_add,CH_incr_finished)
-	go decrementer(CH_add,CH_decr_finished)
+	go number_server(ch_add, ch_sub, ch_read)
+	go decrement(ch_sub, ch_finished)
+	go increment(ch_add, ch_finished)
+
+	<-ch_finished
+	<-ch_finished
 
 	// Block on finished from both "worker" goroutines
-	<- CH_incr_finished
-	<- CH_decr_finished
+	fmt.Println("The magic number is:", <-ch_read)
 
-	fmt.Println("The magic number is:", <-CH_sub)
-	CH_read <- 0
 }
