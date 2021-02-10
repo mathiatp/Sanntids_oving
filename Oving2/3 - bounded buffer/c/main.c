@@ -13,20 +13,21 @@ struct BoundedBuffer {
     pthread_mutex_t     mtx;
     sem_t               empty;
     sem_t               full;
-
-
+    
+    
 };
 
 struct BoundedBuffer* buf_new(int size){
     struct BoundedBuffer* buf = malloc(sizeof(struct BoundedBuffer));
     buf->buf = rb_new(size);
-
+    
     pthread_mutex_init(&buf->mtx, NULL);
-    // initialize semaphores
-    sem_init(&buf->full,  0, 0); /*starting value?*/
-	  sem_init(&buf->empty, 0, 0); /*starting value?*/
+    // TODO: initialize semaphores
 
-    return buf;
+    sem_init(&buf->full,  0, size);
+	sem_init(&buf->empty, 0, 0);
+    
+    return buf;    
 }
 
 void buf_destroy(struct BoundedBuffer* buf){
@@ -40,23 +41,26 @@ void buf_destroy(struct BoundedBuffer* buf){
 
 
 
-void buf_push(struct BoundedBuffer* buf, int val){
+void buf_push(struct BoundedBuffer* buf, int val){    
     // TODO: wait for there to be room in the buffer
-    // Creating two counting semaphores <full> and <empty> to keep track
-    
+    sem_wait(&buf->full); //Decrement semaphore. If buffer is full, semaphore is 0. If semaphore is 0 it blocks. 
+    sem_post(&buf->empty); //Increment semaphore
 
     // TODO: make sure there is no concurrent access to the buffer internals
-
+    pthread_mutex_lock(&buf->mtx);
     rb_push(buf->buf, val);
-
-
-    // TODO: signal that there are new elements in the buffer
+    pthread_mutex_unlock(&buf->mtx);
+    
+    // TODO: signal that there are new elements in the buffer  
 }
 
 int buf_pop(struct BoundedBuffer* buf){
-    // TODO: same, but different?
+    sem_post(&buf->full); //Increment semaphore
+    sem_wait(&buf->empty); //Decrement semaphore. If buffer is full, semaphore is 0. If semaphore <= 0 it blocks. 
 
-    int val = rb_pop(buf->buf);
+    pthread_mutex_lock(&buf->mtx);
+    int val = rb_pop(buf->buf);    
+    pthread_mutex_unlock(&buf->mtx);
 
     return val;
 }
@@ -67,7 +71,7 @@ int buf_pop(struct BoundedBuffer* buf){
 
 void* producer(void* args){
     struct BoundedBuffer* buf = (struct BoundedBuffer*)(args);
-
+    
     for(int i = 0; i < 10; i++){
         nanosleep(&(struct timespec){0, 100*1000*1000}, NULL);
         printf("[producer]: pushing %d\n", i);
@@ -78,7 +82,7 @@ void* producer(void* args){
 
 void* consumer(void* args){
     struct BoundedBuffer* buf = (struct BoundedBuffer*)(args);
-
+    
     // give the producer a 1-second head start
     nanosleep(&(struct timespec){1, 0}, NULL);
     while(1){
@@ -88,19 +92,19 @@ void* consumer(void* args){
     }
 }
 
-int main(){
-
+int main(){ 
+    
     struct BoundedBuffer* buf = buf_new(5);
-
+    
     pthread_t producer_thr;
     pthread_t consumer_thr;
     pthread_create(&producer_thr, NULL, producer, buf);
     pthread_create(&consumer_thr, NULL, consumer, buf);
-
+    
     pthread_join(producer_thr, NULL);
     pthread_cancel(consumer_thr);
-
+    
     buf_destroy(buf);
-
+    
     return 0;
 }

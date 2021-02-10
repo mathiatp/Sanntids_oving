@@ -3,7 +3,7 @@
 
 int i = 0;
 pthread_mutex_t lock; 
-
+//Chose mutex since we want to give exclusive access to one thread at the time. Semaphore is better to use when we have to wait for another thread to finish a operation before we continue.
 
 // Note the return type: void*
 void* incrementingThreadFunction(){
